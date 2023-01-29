@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<title>ui</title>
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/0.5.14/p5.js"></script>
+
+	<script text="text/javascript">
+		function setup() {
+			createCanvas(400, 400);
+
+		}
+
+		function draw() {
+			background(255, 200, 200);
+		}
+	</script>
+
+	<style>
+		body{
+			background-color: black;
+			color: white;
+		}
+	</style>
+</head>
+<body>
+	<button id="btn">Connect</button>
+
+	
+</body>
+</html>
+
+<script type="text/javascript">
+	var btn = document.getElementById('btn');
+	// btn.onclick = function(){ console.log('clicked');}
+	btn.onclick = function(){
+		var socket = new WebSocket('ws://localhost:8080/ws');
+		socket.onopen = function(){
+			socket.send('Hello');
+		}
+		socket.onmessage = function(msg){
+			console.log(msg.data);
+		}
+		socket.onclose = function(){
+			console.log('closed');
+		}
+	}
+</script>
