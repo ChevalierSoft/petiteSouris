@@ -1,47 +1,181 @@
 <!DOCTYPE html>
 <html>
 <head>
-	<title>ui</title>
-	<script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/0.5.14/p5.js"></script>
-
-	<script text="text/javascript">
-		function setup() {
-			createCanvas(400, 400);
-
-		}
-
-		function draw() {
-			background(255, 200, 200);
-		}
-	</script>
-
+    <!-- fill iPhone screen with canvas -->
+    <meta name="viewport" content="width=400" />
+    <title>Tracking Mouse and Touch Events on Canvas</title>
+	<link rel="icon" href="animated_favicon.webp" type="image/gif" >
 	<style>
-		body{
-			background-color: black;
-			color: white;
+		body {
+			background-color: #000000;
+		}
+		button {
+			display: inline-block;
+			width: 45%;
+			height: 40%;
+			border: 2px solid #505050;
+			border-radius: 8px;
+			background-color: #313131;
+			color: #505050;
+			text-align: center;
+			font-size: 28px;
+			padding: 20px;
+			transition: all 0.5s;
+			cursor: pointer;
+			margin: 5px;
 		}
 	</style>
+    <script type="text/javascript">
+        let can, ctx, canX, canY, mouseIsDown = 0;
+		let cc = 0;
+		let ww = 390, wh = 500, bs = 100;
+		let socket = new WebSocket('ws://192.168.1.47:8080/ws');
+
+        function init() {
+
+            can = document.getElementById("can");
+            ctx = can.getContext("2d");
+
+            can.addEventListener("mousedown", mouseDown, false);
+            can.addEventListener("mousemove", mouseXY, false);
+            can.addEventListener("touchstart", touchDown, false);
+            can.addEventListener("touchmove", touchXY, true);
+            can.addEventListener("touchend", touchUp, false);
+
+            document.body.addEventListener("mouseup", mouseUp, false);
+            document.body.addEventListener("touchcancel", touchUp, false);
+
+			showPos();
+
+			socket.onopen = function(){
+				console.log('connected');
+				socket.send('Hello');
+			}
+			socket.onmessage = function(msg){
+				console.log(msg.data);
+			}
+			socket.onclose = function(){
+				console.log('closed');
+			}
+        }
+
+        function mouseUp() {
+            mouseIsDown = 0;
+            mouseXY();
+        }
+
+        function touchUp() {
+            mouseIsDown = 0;
+            showPos();
+        }
+
+        function mouseDown() {
+			if (mouseIsDown == 0)
+			{
+				mouseIsDown = 1;
+				let e = event;
+				canX = e.pageX - can.offsetLeft;
+				canY = e.pageY - can.offsetTop;
+				console.log("reset");
+				// return ;
+			}
+            mouseXY();
+        }
+
+        function touchDown() {
+			if (mouseIsDown == 0)
+			{
+				mouseIsDown = 1;
+				let e = event;
+				canX = e.targetTouches[0].pageX - can.offsetLeft;
+				canY = e.targetTouches[0].pageY - can.offsetTop;
+				console.log("reset");
+				// return ;
+			}
+            touchXY();
+        }
+
+        function mouseXY(e, pmid) {
+			if (canX > ww || canY > wh)
+				return ;
+            if (!e)
+				var e = event;
+			pcanX = canX;
+			pcanY = canY;
+            canX = e.pageX - can.offsetLeft;
+            canY = e.pageY - can.offsetTop;
+			ax = (canX - pcanX) * 4;
+			ay = (canY - pcanY) * 4;
+			socket.send('pos{'
+				+ `"X":` + (canX - pcanX) + ','
+				+ `"Y":` + (canY - pcanY) + '}'
+			);
+			showPos();
+		}
+
+		function touchXY() {
+			if (canX > ww || canY > wh) // oob
+				return ;
+			if (canX > 0 && canX < ww / 2 && canY > wh - bs && canY < wh) // left click
+				leftClick();
+			else if (canX > ww / 2 && canX < ww && canY > wh - bs && canY < wh) // right click
+				rightClick();
+			else
+			{
+				if (!e)
+					var e = event;
+				e.preventDefault();
+				pcanX = canX;
+				pcanY = canY;
+				canX = e.targetTouches[0].pageX - can.offsetLeft;
+				canY = e.targetTouches[0].pageY - can.offsetTop;
+				ax = (canX - pcanX) * 4;
+				ay = (canY - pcanY) * 4;
+				socket.send('pos{'
+					+ `"X":` + (canX - pcanX) + ','
+					+ `"Y":` + (canY - pcanY) + '}'
+				);
+			}
+			showPos();
+		}
+
+        function showPos() {
+            // large, centered, bright green text
+            ctx.font = "24pt Helvetica";
+            ctx.textAlign = "center";
+            ctx.textBaseline = "middle";
+            ctx.fillStyle = "rgb(64,255,64)";
+			var str = canX + ", " + canY;
+            if (mouseIsDown)
+                str += " down";
+            if (!mouseIsDown)
+                str += " up";
+            ctx.clearRect(0, 0, can.width, can.height);
+            // draw text at center, max length to fit on canvas
+            ctx.fillText(str, can.width / 2, can.height / 2, can.width - 10);
+            // click buttons
+			ctx.fillStyle = "pink";
+			ctx.fillRect(0, wh - bs, 500, 4);
+			ctx.fillStyle = "pink";
+			ctx.fillRect(390/2-2, wh - bs, 4, 100);
+			// plot cursor
+            ctx.fillStyle = "white";
+            ctx.fillRect(canX -5, canY -5, 10, 10);
+        }
+
+		function leftClick() {
+			socket.send('left');
+		}
+
+		function rightClick() {
+			socket.send('right');
+		}
+
+    </script>
 </head>
-<body>
-	<button id="btn">Connect</button>
 
-	
+<body onload="init()" style="background-color: #333;">
+    <canvas id="can" width="390" height="500" style="background-color:black"></canvas>
 </body>
-</html>
 
-<script type="text/javascript">
-	var btn = document.getElementById('btn');
-	// btn.onclick = function(){ console.log('clicked');}
-	btn.onclick = function(){
-		var socket = new WebSocket('ws://localhost:8080/ws');
-		socket.onopen = function(){
-			socket.send('Hello');
-		}
-		socket.onmessage = function(msg){
-			console.log(msg.data);
-		}
-		socket.onclose = function(){
-			console.log('closed');
-		}
-	}
-</script>
+</html>
