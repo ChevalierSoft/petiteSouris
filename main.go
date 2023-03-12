@@ -7,6 +7,7 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"runtime"
 	"strings"
 
 	"github.com/gin-contrib/cors"
@@ -36,10 +37,7 @@ func main() {
 	router := gin.Default()
 	router.Use(cors.Default())
 
-	router.GET("/ws", func(c *gin.Context) {
-		go serveWs(c.Writer, c.Request)
-	})
-
+	router.GET("/ws", func(c *gin.Context) { go serveWs(c.Writer, c.Request) })
 	router.Static("/public", "./public")
 
 	go printIp()
@@ -52,21 +50,26 @@ var upgrader = websocket.Upgrader{
 }
 
 func serveWs(w http.ResponseWriter, r *http.Request) {
-	// upgrade this connection to a WebSocket
-	// connection
+	// ? upgrade this connection to a WebSocket
+	upgrader.CheckOrigin = func(r *http.Request) bool { return true }
 	ws, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
-		log.Fatal(err)
+		if _, file, line, ok := runtime.Caller(0); ok {
+			log.Printf(fmt.Sprintf("file %s, line %d : %s", file, line, err))
+		}
+		return
 	}
-	// listen indefinitely for new messages coming
-	// through on our WebSocket connection
+	defer ws.Close()
+	// ? listen indefinitely for new messages coming
 	for {
 		_, p, err := ws.ReadMessage()
 		if err != nil {
-			log.Fatal(err)
+			if _, file, line, ok := runtime.Caller(0); ok {
+				log.Printf(fmt.Sprintf("file %s, line %d : %s", file, line, err))
+			}
+			break
 		}
-		// mice position
-		if strings.HasPrefix(string(p), "pos") {
+		if strings.HasPrefix(string(p), "pos") { // ? mice position
 			p = p[3:]
 			var vel Vel
 			err = json.Unmarshal(p, &vel)
@@ -77,10 +80,10 @@ func serveWs(w http.ResponseWriter, r *http.Request) {
 				x, y := robotgo.GetMousePos()
 				robotgo.Move(x+int(vel.X), y+int(vel.Y))
 			}
-		} else if strings.HasPrefix(string(p), "left") {
+		} else if strings.HasPrefix(string(p), "left") { //  ? left click
 			fmt.Printf("left\n")
 			robotgo.Click("left")
-		} else if strings.HasPrefix(string(p), "right") {
+		} else if strings.HasPrefix(string(p), "right") { // ? right click
 			fmt.Printf("right\n")
 			robotgo.Click("right")
 		} else {
