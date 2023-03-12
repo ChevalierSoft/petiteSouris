@@ -1,9 +1,9 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <!-- fill iPhone screen with canvas -->
+    <!-- ? fill iPhone screen with canvas -->
     <meta name="viewport" content="width=400" />
-    <title>Tracking Mouse and Touch Events on Canvas</title>
+    <title>Petite Souris</title>
 	<link rel="icon" href="animated_favicon.webp" type="image/gif" >
 	<style>
 		body {
@@ -26,10 +26,10 @@
 		}
 	</style>
     <script type="text/javascript">
-        let can, ctx, canX, canY, mouseIsDown = 0;
+        let can, ctx, canX, canY, mouseIsDown = 0, mouseIsMoving = false;
 		let cc = 0;
-		let ww = 390, wh = 500, bs = 100;
-		let socket = new WebSocket('ws://192.168.1.47:8080/ws');
+		let ww = 390, wh = window.innerHeight, bs = 100, speed = 3;
+		let socket = new WebSocket('ws://l77.local:8080/ws');
 
         function init() {
 
@@ -44,6 +44,9 @@
 
             document.body.addEventListener("mouseup", mouseUp, false);
             document.body.addEventListener("touchcancel", touchUp, false);
+
+			// ctx.canvas.width  = window.innerWidth;
+			// ctx.canvas.height = window.innerHeight;
 
 			showPos();
 
@@ -61,11 +64,13 @@
 
         function mouseUp() {
             mouseIsDown = 0;
+			mouseIsMoving = false;
             mouseXY();
         }
 
         function touchUp() {
             mouseIsDown = 0;
+			mouseIsMoving = false;
             showPos();
         }
 
@@ -73,6 +78,10 @@
 			if (mouseIsDown == 0)
 			{
 				mouseIsDown = 1;
+				if (canY < wh - bs)
+					mouseIsMoving = true;
+				else
+					mouseIsMoving = false;
 				let e = event;
 				canX = e.pageX - can.offsetLeft;
 				canY = e.pageY - can.offsetTop;
@@ -86,6 +95,10 @@
 			if (mouseIsDown == 0)
 			{
 				mouseIsDown = 1;
+				if (canY < wh - bs)
+					mouseIsMoving = true;
+				else
+					mouseIsMoving = false;
 				let e = event;
 				canX = e.targetTouches[0].pageX - can.offsetLeft;
 				canY = e.targetTouches[0].pageY - can.offsetTop;
@@ -104,23 +117,19 @@
 			pcanY = canY;
             canX = e.pageX - can.offsetLeft;
             canY = e.pageY - can.offsetTop;
-			ax = (canX - pcanX) * 4;
-			ay = (canY - pcanY) * 4;
+			ax = (canX - pcanX) * speed;
+			ay = (canY - pcanY) * speed;
 			socket.send('pos{'
-				+ `"X":` + (canX - pcanX) + ','
-				+ `"Y":` + (canY - pcanY) + '}'
+				+ `"X":` + ax + ','
+				+ `"Y":` + ay + '}'
 			);
 			showPos();
 		}
 
 		function touchXY() {
-			if (canX > ww || canY > wh) // oob
-				return ;
-			if (canX > 0 && canX < ww / 2 && canY > wh - bs && canY < wh) // left click
-				leftClick();
-			else if (canX > ww / 2 && canX < ww && canY > wh - bs && canY < wh) // right click
-				rightClick();
-			else
+			// if (canX > ww || canY > wh) // ? oob
+			// 	return ;
+			if (mouseIsMoving)
 			{
 				if (!e)
 					var e = event;
@@ -129,18 +138,22 @@
 				pcanY = canY;
 				canX = e.targetTouches[0].pageX - can.offsetLeft;
 				canY = e.targetTouches[0].pageY - can.offsetTop;
-				ax = (canX - pcanX) * 4;
-				ay = (canY - pcanY) * 4;
+				ax = (canX - pcanX) * speed;
+				ay = (canY - pcanY) * speed;
 				socket.send('pos{'
-					+ `"X":` + (canX - pcanX) + ','
-					+ `"Y":` + (canY - pcanY) + '}'
+					+ `"X":` + ax + ','
+					+ `"Y":` + ay + '}'
 				);
 			}
+			else if (canX > 0 && canX < ww / 2 && canY > wh - bs && canY < wh) // left click
+				leftClick();
+			else if (canX > ww / 2 && canX < ww && canY > wh - bs && canY < wh) // right click
+				rightClick();
 			showPos();
 		}
 
         function showPos() {
-            // large, centered, bright green text
+            // ? large, centered, bright green text
             ctx.font = "24pt Helvetica";
             ctx.textAlign = "center";
             ctx.textBaseline = "middle";
@@ -151,14 +164,14 @@
             if (!mouseIsDown)
                 str += " up";
             ctx.clearRect(0, 0, can.width, can.height);
-            // draw text at center, max length to fit on canvas
+            // ? draw text at center, max length to fit on canvas
             ctx.fillText(str, can.width / 2, can.height / 2, can.width - 10);
             // click buttons
 			ctx.fillStyle = "pink";
-			ctx.fillRect(0, wh - bs, 500, 4);
+			ctx.fillRect(0, wh - bs, wh, 4);
 			ctx.fillStyle = "pink";
-			ctx.fillRect(390/2-2, wh - bs, 4, 100);
-			// plot cursor
+			ctx.fillRect(ww/2-2, wh - bs, 4, 100);
+			// ? plot cursor
             ctx.fillStyle = "white";
             ctx.fillRect(canX -5, canY -5, 10, 10);
         }
@@ -175,7 +188,7 @@
 </head>
 
 <body onload="init()" style="background-color: #333;">
-    <canvas id="can" width="390" height="500" style="background-color:black"></canvas>
+    <canvas id="can" width="390" height="700" style="background-color:black"></canvas>
 </body>
 
 </html>
