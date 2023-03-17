@@ -64,7 +64,7 @@
 
 		socket.onopen = function(){
 			console.log('connected');
-			socket.send('Hello');
+			socket.send('hello');
 		}
 		socket.onmessage = function(msg){
 			console.log(msg.data);
