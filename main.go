@@ -40,7 +40,7 @@ func main() {
 	router.GET("/", func(c *gin.Context) {
 		c.Redirect(http.StatusTemporaryRedirect, "/public/index.html"+"?host="+host+".local")
 	})
-	router.GET("/ws", func(c *gin.Context) { go serveWs(c.Writer, c.Request) })
+	router.GET("/ws", func(c *gin.Context) { serveWs(c.Writer, c.Request) })
 	router.Static("/public", "./public")
 	router.Run(":" + PORT)
 }
@@ -85,19 +85,22 @@ func serveWs(w http.ResponseWriter, r *http.Request) {
 	upgrader.CheckOrigin = func(r *http.Request) bool { return true }
 	ws, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
-		if _, file, line, ok := runtime.Caller(0); ok {
-			log.Panic(fmt.Sprint("file ", file, ", line", line, " : ", err))
-		}
+		log.Println(err)
+		// if _, file, line, ok := runtime.Caller(0); ok {
+		// 	log.Println(fmt.Sprint("file ", file, ", line", line, " : ", err))
+		// }
 		return
 	}
 	defer ws.Close()
+	log.Println("new connection from : ", ws.RemoteAddr().String())
 	// ? listen indefinitely for new messages coming
 	for {
 		_, p, err := ws.ReadMessage()
 		if err != nil {
-			if _, file, line, ok := runtime.Caller(0); ok {
-				log.Panic(fmt.Sprint("file ", file, ", line", line, " : ", err))
-			}
+			log.Println(err)
+			// if _, file, line, ok := runtime.Caller(0); ok {
+			// 	log.Println(fmt.Sprint("file ", file, ", line", line, " : ", err))
+			// }
 			break
 		}
 		if strings.HasPrefix(string(p), "pos") { // ? mice position
@@ -105,12 +108,11 @@ func serveWs(w http.ResponseWriter, r *http.Request) {
 			var vel Vel
 			err = json.Unmarshal(p, &vel)
 			if err != nil {
-				fmt.Println(err)
-			} else {
-				fmt.Println("vel : ", vel)
-				x, y := robotgo.GetMousePos()
-				robotgo.Move(x+int(vel.X), y+int(vel.Y))
+				log.Println(err)
 			}
+			fmt.Println("vel : ", vel)
+			x, y := robotgo.GetMousePos()
+			robotgo.Move(x+int(vel.X), y+int(vel.Y))
 		} else if strings.HasPrefix(string(p), "left") { //  ? left click
 			fmt.Printf("left\n")
 			robotgo.Click("left")
