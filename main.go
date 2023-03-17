@@ -18,7 +18,8 @@ import (
 )
 
 const (
-	PORT = "8080"
+	PORT  = "8080"
+	DEBUG = false
 )
 
 type Vel struct {
@@ -31,11 +32,20 @@ var upgrader = websocket.Upgrader{
 	WriteBufferSize: 1024,
 }
 
+func init() {
+	if DEBUG {
+		gin.SetMode(gin.DebugMode)
+	} else {
+		gin.SetMode(gin.ReleaseMode)
+	}
+}
+
 func main() {
 	host, _ := getNetworkInterfaces()
 	printQRCode(&host)
 
-	router := gin.Default()
+	router := gin.New()
+	router.Use(gin.Recovery())
 	router.Use(cors.Default())
 	router.GET("/", func(c *gin.Context) {
 		c.Redirect(http.StatusTemporaryRedirect, "/public/index.html"+"?host="+host+".local")
@@ -60,12 +70,12 @@ func getNetworkInterfaces() (string, []net.IP) {
 		}
 		return "", nil
 	}
-	fmt.Printf("HOST %v :\n", host)
-	for _, addr := range addrs {
-		if ipv4 := addr.To4(); ipv4 != nil {
-			fmt.Println("\t", ipv4)
-		}
-	}
+	// fmt.Printf("HOST %v :\n", host)
+	// for _, addr := range addrs {
+	// 	if ipv4 := addr.To4(); ipv4 != nil {
+	// 		fmt.Println("\t", ipv4)
+	// 	}
+	// }
 	return host, addrs
 }
 
@@ -85,42 +95,52 @@ func serveWs(w http.ResponseWriter, r *http.Request) {
 	upgrader.CheckOrigin = func(r *http.Request) bool { return true }
 	ws, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
-		log.Println(err)
-		// if _, file, line, ok := runtime.Caller(0); ok {
-		// 	log.Println(fmt.Sprint("file ", file, ", line", line, " : ", err))
-		// }
+		debLog(err)
 		return
 	}
 	defer ws.Close()
-	log.Println("new connection from : ", ws.RemoteAddr().String())
+	debPrintln("New connexion : " + ws.RemoteAddr().String())
 	// ? listen indefinitely for new messages coming
 	for {
 		_, p, err := ws.ReadMessage()
 		if err != nil {
-			log.Println(err)
-			// if _, file, line, ok := runtime.Caller(0); ok {
-			// 	log.Println(fmt.Sprint("file ", file, ", line", line, " : ", err))
-			// }
-			break
+			debLog(err)
+			return
 		}
 		if strings.HasPrefix(string(p), "pos") { // ? mice position
 			p = p[3:]
 			var vel Vel
 			err = json.Unmarshal(p, &vel)
 			if err != nil {
-				log.Println(err)
+				debLog(err)
+				return
 			}
-			fmt.Println("vel : ", vel)
+			debPrintln("vel : " + string(p))
 			x, y := robotgo.GetMousePos()
 			robotgo.Move(x+int(vel.X), y+int(vel.Y))
 		} else if strings.HasPrefix(string(p), "left") { //  ? left click
-			fmt.Printf("left\n")
+			debPrintln("left")
 			robotgo.Click("left")
 		} else if strings.HasPrefix(string(p), "right") { // ? right click
-			fmt.Printf("right\n")
+			debPrintln("right")
 			robotgo.Click("right")
+		} else if strings.HasPrefix(string(p), "hello") { // ? scroll
 		} else {
-			fmt.Println("not supported : ", string(p))
+			debPrintln("unknown message : " + string(p))
 		}
+	}
+}
+
+// ? could be nice to make a debug package
+func debLog(err error) {
+	if DEBUG {
+		_, file, line, _ := runtime.Caller(1)
+		log.Println(fmt.Sprint("file ", file, ", line ", line, " : ", err))
+	}
+}
+
+func debPrintln(err string) {
+	if DEBUG {
+		log.Println(err)
 	}
 }
