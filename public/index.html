@@ -34,7 +34,7 @@
 <script type="text/javascript">
 	let can = document.getElementById("can");
 	let ctx = can.getContext("2d");
-	let canX, canY, mouseIsDown = 0, mouseIsMoving = false;
+	let canX, canY, mouseIsDown = 0, mouseIsMoving = false, mouseClickPressed = false;
 	let cc = 0;
 	let bs = 100, speed = 3;
 	let url = getUrlParameter('host') + ':8080';
@@ -77,12 +77,14 @@
 	function mouseUp() {
 		mouseIsDown = 0;
 		mouseIsMoving = false;
+		mouseClickPressed = false;
 		mouseXY();
 	}
 
 	function touchUp() {
 		mouseIsDown = 0;
 		mouseIsMoving = false;
+		mouseClickPressed = false;
 		showPos();
 	}
 
@@ -157,10 +159,14 @@
 				+ `"Y":` + ay + '}'
 			);
 		}
-		else if (canX > 0 && canX < can.width / 2 && canY > can.height - bs && canY < can.height) // left click
-			leftClick();
-		else if (canX > can.width / 2 && canX < can.width && canY > can.height - bs && canY < can.height) // right click
-			rightClick();
+		else if (!mouseClickPressed)
+		{
+			mouseClickPressed = true;
+			if (canX > 0 && canX < can.width / 2 && canY > can.height - bs && canY < can.height) // left click
+				leftClick();
+			else if (canX > can.width / 2 && canX < can.width && canY > can.height - bs && canY < can.height) // right click
+				rightClick();
+		}
 		showPos();
 	}
 
