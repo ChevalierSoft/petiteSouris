@@ -9,6 +9,7 @@ import (
 	"os"
 	"runtime"
 	"strings"
+	"text/template"
 
 	"github.com/gin-contrib/cors"
 	gin "github.com/gin-gonic/gin"
@@ -18,7 +19,7 @@ import (
 )
 
 const (
-	PORT  = "8080"
+	PORT  = "40444"
 	DEBUG = false
 )
 
@@ -47,11 +48,17 @@ func main() {
 	router := gin.New()
 	router.Use(gin.Recovery())
 	router.Use(cors.Default())
+
+	// tmpl["index"] = template.Must(template.ParseFiles("templates/index.gohtml"))
 	router.GET("/", func(c *gin.Context) {
-		c.Redirect(http.StatusTemporaryRedirect, "/public/index.html"+"?host="+host+".local")
+		sendTemplate(
+			c,
+			template.Must(template.ParseFiles("templates/index.gohtml")),
+			host,
+		)
 	})
 	router.GET("/ws", func(c *gin.Context) { serveWs(c.Writer, c.Request) })
-	router.Static("/public", "./public")
+
 	router.Run(":" + PORT)
 }
 
@@ -70,12 +77,6 @@ func getNetworkInterfaces() (string, []net.IP) {
 		}
 		return "", nil
 	}
-	// fmt.Printf("HOST %v :\n", host)
-	// for _, addr := range addrs {
-	// 	if ipv4 := addr.To4(); ipv4 != nil {
-	// 		fmt.Println("\t", ipv4)
-	// 	}
-	// }
 	return host, addrs
 }
 
@@ -88,6 +89,20 @@ func printQRCode(host *string) {
 		WhiteChar: qrterminal.WHITE,
 		QuietZone: 1,
 	})
+}
+
+func sendTemplate(c *gin.Context, template *template.Template, host string) {
+	data := struct {
+		SERVER_URL  string
+		SERVER_PORT string
+	}{
+		SERVER_URL:  host + ".local",
+		SERVER_PORT: PORT,
+	}
+	err := template.Execute(c.Writer, data)
+	if err != nil {
+		http.Error(c.Writer, err.Error(), http.StatusInternalServerError)
+	}
 }
 
 func serveWs(w http.ResponseWriter, r *http.Request) {
@@ -124,7 +139,7 @@ func serveWs(w http.ResponseWriter, r *http.Request) {
 		} else if strings.HasPrefix(string(p), "right") { // ? right click
 			debPrintln("right")
 			robotgo.Click("right")
-		} else if strings.HasPrefix(string(p), "hello") { // ? scroll
+		} else if strings.HasPrefix(string(p), "hello") { // ? hello
 		} else {
 			debPrintln("unknown message : " + string(p))
 		}
