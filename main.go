@@ -1,6 +1,7 @@
 package main
 
 import (
+	_ "embed"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -33,6 +34,11 @@ var upgrader = websocket.Upgrader{
 	WriteBufferSize: 1024,
 }
 
+// ? embed the file in the executable
+
+//go:embed "templates/index.gohtml"
+var indexTmplString string
+
 func init() {
 	if DEBUG {
 		gin.SetMode(gin.DebugMode)
@@ -42,6 +48,10 @@ func init() {
 }
 
 func main() {
+
+	// ? load index template from embeded file
+	indexTmpl := template.Must(template.New("index").Parse(indexTmplString))
+
 	host, _ := getNetworkInterfaces()
 	printQRCode(&host)
 
@@ -49,14 +59,7 @@ func main() {
 	router.Use(gin.Recovery())
 	router.Use(cors.Default())
 
-	// tmpl["index"] = template.Must(template.ParseFiles("templates/index.gohtml"))
-	router.GET("/", func(c *gin.Context) {
-		sendTemplate(
-			c,
-			template.Must(template.ParseFiles("templates/index.gohtml")),
-			host,
-		)
-	})
+	router.GET("/", func(c *gin.Context) { sendTemplate(c, indexTmpl, host) })
 	router.GET("/ws", func(c *gin.Context) { serveWs(c.Writer, c.Request) })
 
 	router.Run(":" + PORT)
